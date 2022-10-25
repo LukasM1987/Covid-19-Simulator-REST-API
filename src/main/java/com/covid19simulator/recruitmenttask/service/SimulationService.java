@@ -37,6 +37,7 @@ public class SimulationService {
         int daysToDeath = 0;
         if (simulation.getInitialData().isAvailable()) {
             createFirstDayOfSimulation(simulation.getInitialData());
+            simulations.get(0).getInitialData().setAvailable(false);
             for (int i = 0; i < simulations.get(0).getInitialData().getSimulationDays() - 1; i++) {
                 simulation = new Simulation();
                 daysToRecovery++;
@@ -95,13 +96,13 @@ public class SimulationService {
     }
 
     private void addDead(Simulation simulation, int daysToDeath, int i) {
-        if (daysToDeath > simulation.getInitialData().getDaysToMortality()) {
+        if (daysToDeath >= simulation.getInitialData().getDaysToMortality()) {
             simulation.setMortalityPopulation(
                     (int) (infectedPopulations.get(
-                            i - simulation.getInitialData().getDaysToMortality()) * simulation.getInitialData().getMortality()));
+                            i - simulation.getInitialData().getDaysToMortality() + 1) * simulation.getInitialData().getMortality()));
             notAlivePopulations.add(
                     (int) (infectedPopulations.get(
-                            i - simulation.getInitialData().getDaysToMortality()) * simulation.getInitialData().getMortality()));
+                            i - simulation.getInitialData().getDaysToMortality() + 1) * simulation.getInitialData().getMortality()));
         } else {
             simulation.setMortalityPopulation(0);
             notAlivePopulations.add(0);
@@ -113,7 +114,7 @@ public class SimulationService {
             simulation.setRecoveryPopulation(infectedPopulations.get(
                     i - simulation.getInitialData().getDaysToRecovery() + 1)
                     - notAlivePopulations.get(i - simulation.getInitialData().getDaysToRecovery()
-                    + ADD_TWO_DAY + simulation.getInitialData().getDaysToMortality()));
+                    + 1 + simulation.getInitialData().getDaysToMortality()));
         } else {
             simulation.setRecoveryPopulation(0);
         }
