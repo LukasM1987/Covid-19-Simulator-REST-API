@@ -47,14 +47,8 @@ public class SimulationService {
                 simulation.setSimulationDay(i + 2);
                 addDead(simulation, daysToDeath, i);
                 addRecovery(simulation, daysToRecovery, i);
-                simulation.setInfectedPopulation(
-                        (int) (infectedPopulations.get(i) * simulation.getInitialData().getIndicatorR()));
-                infectedPopulations.add(
-                        (int) (infectedPopulations.get(i) * simulation.getInitialData().getIndicatorR()));
-                simulation.setSusceptiblePopulation((susceptiblePopulations.get(i) - infectedPopulations.get(i + 1)
-                        - notAlivePopulations.get(i + 1)));
-                susceptiblePopulations.add((susceptiblePopulations.get(i) - infectedPopulations.get(i + 1)
-                        - notAlivePopulations.get(i + 1)));
+                addInfected(simulation, i);
+                addSusceptible(simulation, i);
                 addRow(simulation, i);
             }
         } else {
@@ -64,6 +58,20 @@ public class SimulationService {
         recoveryPopulations.clear();
         infectedPopulations.clear();
         notAlivePopulations.clear();
+    }
+
+    private void addSusceptible(Simulation simulation, int i) {
+        simulation.setSusceptiblePopulation((susceptiblePopulations.get(i) - infectedPopulations.get(i + 1)
+                - notAlivePopulations.get(i + 1)));
+        susceptiblePopulations.add((susceptiblePopulations.get(i) - infectedPopulations.get(i + 1)
+                - notAlivePopulations.get(i + 1)));
+    }
+
+    private void addInfected(Simulation simulation, int i) {
+        simulation.setInfectedPopulation(
+                (int) (infectedPopulations.get(i) * simulation.getInitialData().getIndicatorR()));
+        infectedPopulations.add(
+                (int) (infectedPopulations.get(i) * simulation.getInitialData().getIndicatorR()));
     }
 
     private void createFirstDayOfSimulation(final InitialData initialData) {
