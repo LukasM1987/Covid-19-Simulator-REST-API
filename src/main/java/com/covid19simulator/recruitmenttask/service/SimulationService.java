@@ -3,6 +3,7 @@ package com.covid19simulator.recruitmenttask.service;
 import com.covid19simulator.recruitmenttask.domain.InitialData;
 import com.covid19simulator.recruitmenttask.domain.Simulation;
 import com.covid19simulator.recruitmenttask.exceptions.InitialDataException;
+import com.covid19simulator.recruitmenttask.exceptions.SimulationException;
 import com.covid19simulator.recruitmenttask.repository.InitialDataRepository;
 import com.covid19simulator.recruitmenttask.repository.SimulationRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +18,12 @@ import java.util.List;
 public class SimulationService {
 
     private static final List<Simulation> simulations = new ArrayList<>();
-    private static final List<Double> lista_liczby_zarażonych_z_każdego_dnia = new ArrayList<>();
-    private static final List<Double> lista_liczby_zmarłych_z_każdego_dnia = new ArrayList<>();
-    private static final List<Double> lista_Liczby_ozdrowiałych_z_każdego_dnia = new ArrayList<>();
+    private static final List<Integer> infectedPopulations = new ArrayList<>();
+    private static final List<Integer> notAlivePopulations = new ArrayList<>();
+    private static final List<Integer> recoveryPopulations = new ArrayList<>();
+    private static final List<Integer> susceptiblePopulations = new ArrayList<>();
+
+    private static final int POPULATION_LIMIT = 0;
 
     private InitialDataRepository initialDataRepository;
     private SimulationRepository simulationRepository;
@@ -30,93 +34,89 @@ public class SimulationService {
         this.simulationRepository = simulationRepository;
     }
 
-    private void createFirstDayOfSimulation(final InitialData initialData) {
-        Simulation simulation = new Simulation();
-        simulation.setSimulationDay(1);  //POZNIEJ USUNAC TA LINIJKE!!
-        simulation.setInfectedPopulation(initialData.getInitialNumberOfInfected());
-        simulation.setSusceptiblePopulation(initialData.getPopulation() - initialData.getInitialNumberOfInfected());
-        simulation.setMortalityPopulation(0);
-        simulation.setRecoveryPopulation(0);
-        simulation.setInitialData(initialData);
-        lista_liczby_zarażonych_z_każdego_dnia.add((double) initialData.getInitialNumberOfInfected());
-        lista_liczby_zmarłych_z_każdego_dnia.add(0.0);
-        lista_Liczby_ozdrowiałych_z_każdego_dnia.add(0.0);
-        simulations.add(simulation);
-        simulationRepository.save(simulation);
-    }
-
-    public void createSimulation(Simulation simulation) throws InitialDataException {
-        int dni_do_wyzdrowienia = 0;
-        int dni_do_śmierci = 0;
+    public void createSimulation(Simulation simulation) throws InitialDataException, SimulationException {
+        int daysToRecovery = 0;
+        int daysToDeath = 0;
         if (simulation.getInitialData().isAvailable()) {
             createFirstDayOfSimulation(simulation.getInitialData());
-
             for (int i = 0; i < simulations.get(0).getInitialData().getSimulationDays() - 1; i++) {
-                int populacja = (int) (simulations.get(0).getInitialData().getPopulation()
-                                        - lista_liczby_zmarłych_z_każdego_dnia.get(i) - lista_Liczby_ozdrowiałych_z_każdego_dnia.get(i));
                 simulation = new Simulation();
-                dni_do_wyzdrowienia++;
-                dni_do_śmierci++;
+                daysToRecovery++;
+                daysToDeath++;
                 simulation.setInitialData(simulations.get(0).getInitialData());
-                simulation.setSimulationDay(i + 2); //POZNIEJ USUNAC TA LINIJKE!!
-
-                if (dni_do_śmierci > simulation.getInitialData().getDaysToMortality()) {
-
-                    /*
-                    simulation.setMortalityPopulation(lista_liczby_zmarłych_z_każdego_dnia.get(i)
-                            + simulation.getInitialData().getMortality());
-                    lista_liczby_zmarłych_z_każdego_dnia.add(lista_liczby_zmarłych_z_każdego_dnia.get(i)
-                            + simulation.getInitialData().getMortality());
-                    */
-
-                    simulation.setMortalityPopulation(0);
-                    lista_liczby_zmarłych_z_każdego_dnia.add(0.0);
-                } else {
-                    simulation.setMortalityPopulation(0);
-                    lista_liczby_zmarłych_z_każdego_dnia.add(0.0);
-                }
-
-                //----------------------------------------------------------------------------------------------------//
-
-                if (dni_do_wyzdrowienia >= simulation.getInitialData().getDaysToRecovery()) {
-
-
-
-
-
-                    simulation.setInfectedPopulation(
-                            (int) (lista_liczby_zarażonych_z_każdego_dnia.get(i) * simulation.getInitialData().getIndicatorR()));
-                    lista_liczby_zarażonych_z_każdego_dnia.add(
-                            lista_liczby_zarażonych_z_każdego_dnia.get(i) * simulation.getInitialData().getIndicatorR());
-                    simulation.setSusceptiblePopulation(0);
-                    simulation.setRecoveryPopulation(0);
-
-                    lista_Liczby_ozdrowiałych_z_każdego_dnia.add(
-                            lista_liczby_zarażonych_z_każdego_dnia.get(i - simulation.getInitialData().getDaysToRecovery() + 1));
-
-                } else {
-
-                    simulation.setInfectedPopulation(
-                            (int) (lista_liczby_zarażonych_z_każdego_dnia.get(i) * simulation.getInitialData().getIndicatorR()));
-                    lista_liczby_zarażonych_z_każdego_dnia.add(
-                            lista_liczby_zarażonych_z_każdego_dnia.get(i) * simulation.getInitialData().getIndicatorR());
-                    simulation.setSusceptiblePopulation(
-                            (int) (populacja - lista_liczby_zarażonych_z_każdego_dnia.get(i + 1)));
-                    simulation.setRecoveryPopulation(0);
-                    lista_Liczby_ozdrowiałych_z_każdego_dnia.add(0.0);
-                }
-                simulationRepository.save(simulation);
+                simulation.setSimulationDay(i + 2);
+                addDead(simulation, daysToDeath, i);
+                addRecovery(simulation, daysToRecovery, i);
+                simulation.setInfectedPopulation(
+                        (int) (infectedPopulations.get(i) * simulation.getInitialData().getIndicatorR()));
+                infectedPopulations.add(
+                        (int) (infectedPopulations.get(i) * simulation.getInitialData().getIndicatorR()));
+                simulation.setSusceptiblePopulation((susceptiblePopulations.get(i) - infectedPopulations.get(i + 1)
+                        - notAlivePopulations.get(i + 1)));
+                susceptiblePopulations.add((susceptiblePopulations.get(i) - infectedPopulations.get(i + 1)
+                        - notAlivePopulations.get(i + 1)));
+                addRow(simulation, i);
             }
         } else {
             throw new InitialDataException();
         }
         simulations.clear();
-        lista_Liczby_ozdrowiałych_z_każdego_dnia.clear();
-        lista_liczby_zarażonych_z_każdego_dnia.clear();
-        lista_liczby_zmarłych_z_każdego_dnia.clear();
+        recoveryPopulations.clear();
+        infectedPopulations.clear();
+        notAlivePopulations.clear();
+    }
+
+    private void createFirstDayOfSimulation(final InitialData initialData) {
+        Simulation simulation = new Simulation();
+        simulation.setSimulationDay(1);
+        simulation.setInfectedPopulation(initialData.getInitialNumberOfInfected());
+        simulation.setSusceptiblePopulation(initialData.getPopulation() - initialData.getInitialNumberOfInfected());
+        simulation.setMortalityPopulation(0);
+        simulation.setRecoveryPopulation(0);
+        simulation.setInitialData(initialData);
+        infectedPopulations.add(initialData.getInitialNumberOfInfected());
+        susceptiblePopulations.add(initialData.getPopulation() - initialData.getInitialNumberOfInfected());
+        notAlivePopulations.add(0);
+        recoveryPopulations.add(0);
+        simulations.add(simulation);
+        simulationRepository.save(simulation);
     }
 
     public List<Simulation> getAllSimulationByInitialDataId(final Long id) {
         return simulationRepository.findAllByInitialData_Id(id);
+    }
+
+    private void addDead(Simulation simulation, int daysToDeath, int i) {
+        if (daysToDeath > simulation.getInitialData().getDaysToMortality()) {
+            simulation.setMortalityPopulation(
+                    (int) (infectedPopulations.get(
+                            i - simulation.getInitialData().getDaysToMortality()) * simulation.getInitialData().getMortality()));
+            notAlivePopulations.add(
+                    (int) (infectedPopulations.get(
+                            i - simulation.getInitialData().getDaysToMortality()) * simulation.getInitialData().getMortality()));
+        } else {
+            simulation.setMortalityPopulation(0);
+            notAlivePopulations.add(0);
+        }
+    }
+
+    private void addRecovery(Simulation simulation, int daysToRecovery, int i) {
+        if (daysToRecovery >= simulation.getInitialData().getDaysToRecovery()) {
+            simulation.setRecoveryPopulation(infectedPopulations.get(
+                    i - simulation.getInitialData().getDaysToRecovery() + 1));
+            recoveryPopulations.add(i - simulation.getInitialData().getDaysToRecovery() + 1);
+        } else {
+            simulation.setRecoveryPopulation(0);
+            recoveryPopulations.add(0);
+        }
+    }
+
+    private void addRow(Simulation simulation, int i) throws SimulationException {
+        if (infectedPopulations.get(i + 1) >= simulations.get(0).getInitialData().getPopulation()
+                || susceptiblePopulations.get(i + 1) < POPULATION_LIMIT) {
+            throw new SimulationException();
+        } else {
+            simulationRepository.save(simulation);
+        }
     }
 }
