@@ -21,7 +21,7 @@ public class SimulationController {
     private final SimulationMapper simulationMapper;
 
     @RequestMapping(method = RequestMethod.POST, value = "createSimulation")
-    public void createSimulation(@RequestBody final SimulationsDto simulationsDto) throws InitialDataException {
+    public void createSimulation(@RequestBody final SimulationsDto simulationsDto) throws InitialDataException, SimulationException {
         Simulation simulation = simulationMapper.mapToSimulation(simulationsDto);
         simulationService.createSimulation(simulation);
     }
